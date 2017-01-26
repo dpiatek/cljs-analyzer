@@ -1,24 +1,27 @@
 (ns cljs-analyzer.core
   (:require-macros [hiccups.core :as hiccups])
-  (:require [goog.events :as events]))
+  (:require [goog.events :as events]
+            [hiccups.runtime]))
 
 (enable-console-print!)
 
-(defn html []
+(defn html [w h track-url]
   (hiccups/html
-    [:div
-      [:audio  {:id "track" :crossOrigin "anonymous" :src "http://rumyrashead.com/media/screwUp.mp3"}]]
-    [:button {:id "play" :style "margin-right: 5px"} "Plays"]
+    [:div [:audio  {:id "track" :src track-url}]]
+    [:button {:id "play" :style "margin-right: 5px"} "Play"]
     [:button {:id "pause"} "Pause"]
-    [:pre {:id "test"}]
-    [:canvas {:id "canvas" :style "display: block"}]))
+    [:canvas
+      {:id "canvas"
+       :style "display: block"
+       :width (str w "px")
+       :height (str h "px")}]))
 
 (defn qid [id]
   (.querySelector js/document id))
 
-(defn insert-dom [html]
+(defn insert-dom [html-string]
   (let [app (qid "#app")]
-    (set! (.-innerHTML app) html)
+    (set! (.-innerHTML app) html-string)
     app))
 
 (defn play-track [track-el _]
@@ -27,54 +30,72 @@
 (defn pause-track [track-el _]
   (.pause track-el))
 
-(defn setup [audio]
-  (print "setup")
-  (swap! audio assoc :context (new js/AudioContext))
-  (let [app (insert-dom (html))
+(defn create-contexts [track-el canvas-el]
+  (let [context (new js/AudioContext)]
+    {:context context
+     :canvas-context (.getContext canvas-el "2d")
+     :track-src (.createMediaElementSource context track-el)
+     :analyser (.createAnalyser context)}))
+
+(defn connect-audio [{:keys [analyser context track-src]} fft-size]
+  (set! (.-fftSize analyser) fft-size)
+  (.connect track-src analyser)
+  (.connect track-src (.-destination context))
+  (.connect analyser (.-destination context)))
+
+(defn setup [{:keys [root width height track freq-data]}]
+  (print "Setup")
+  (let [app (insert-dom (html width height track))
         play-btn (qid "#play")
         pause-btn (qid "#pause")
         track-el (qid "#track")
-        canvas (qid "#test")
-        audio-api (:context @audio)
-        track (.createMediaElementSource audio-api track-el)
-        analyser-node (.createAnalyser audio-api)]
-      (set! (.-fftSize analyser-node) 64)
-      (.connect track analyser-node)
-      (.connect track (.-destination audio-api))
-      (.connect analyser-node (.-destination audio-api))
+        canvas-el (qid "#canvas")
+        config (create-contexts track-el canvas-el)]
+      (swap! root merge config)
+      (connect-audio config (.-length freq-data))
       (events/listen play-btn "click" (partial play-track track-el))
-      (events/listen pause-btn "click" (partial pause-track track-el))
-      {:play-btn play-btn
-       :pause-btn pause-btn
-       :analyser-node analyser-node
-       :canvas canvas
-       :app app}))
+      (events/listen pause-btn "click" (partial pause-track track-el))))
 
-(defn teardown [audio-api]
-  (print "teardown")
+(defn teardown [{:keys [context]}]
+  (print "Teardown")
+  (.close context)
   (events/removeAll (qid "#play") "click")
   (events/removeAll (qid "#pause") "click")
   (set! (.-innerText (qid "#app")) ""))
 
 ; API
-(defonce freq-data (js/Uint8Array. 32))
-(defonce audio (atom {:context (new js/AudioContext)}))
+(defn get-bytes [analyser freq-data]
+  (.getByteFrequencyData analyser freq-data)
+  [freq-data (.-frequencyBinCount analyser)])
 
-(defn get-bytes [analyser-node freq-data]
-  (.getByteFrequencyData analyser-node freq-data)
-  freq-data)
+(defn render [{w :width h :height :as config} ctx [data buffer-length]]
+  (set! (.-fillStyle ctx) "rgb(255, 255, 255)")
+  (.fillRect ctx 0 0 w h)
+  (loop [i 0 x 0]
+    (let [bar-height (aget data i)
+          bar-width (* (/ w buffer-length) 1)]
+      (set! (.-fillStyle ctx) (str "rgb(255, 50, 50)"))
+      (.fillRect ctx x (- h bar-height) bar-width bar-height)
+      (when (< i buffer-length)
+        (recur (inc i) (+ x bar-width))))))
 
-(defn render [canvas data]
-  (set! (.-innerHTML canvas) data))
+(defn frame [{:keys [analyser canvas-context] :as r} {:keys [root freq-data] :as config}]
+  (.requestAnimationFrame js/window (partial frame r config))
+  (render config canvas-context (get-bytes analyser freq-data)))
 
-(defn fill [analyser-node canvas freq-data]
-  (.requestAnimationFrame js/window (partial fill analyser-node canvas freq-data))
-  (render canvas (get-bytes analyser-node freq-data)))
+(defn init [{:keys [root] :as config}]
+  (setup config)
+  (frame @root config))
 
-(defn init [audio fill freq-data]
-  (let [setup-result (setup audio)]
-    (fill (:analyser-node setup-result) (:canvas setup-result) freq-data)))
+(defonce config
+  {:freq-data (js/Uint8Array. 4096)
+   :root (atom {})
+   :width 1024
+   :height 256
+   :track "/audio/heavy-soul-slinger.mp3"})
+
+(init config)
 
 (defn on-js-reload []
-  (teardown (:context @audio))
-  (init audio fill freq-data))
+  (teardown (deref (:root config)))
+  (init config))

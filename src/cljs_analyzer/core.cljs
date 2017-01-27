@@ -5,16 +5,19 @@
 
 (enable-console-print!)
 
-(defn html [w h track-url]
+(defn html [{w :width h :height src :track}]
   (hiccups/html
-    [:div [:audio  {:id "track" :src track-url}]]
+    [:div [:audio  {:id "track" :src src}]]
     [:button {:id "play" :style "margin-right: 5px"} "Play"]
-    [:button {:id "pause"} "Pause"]
+    [:button {:id "pause" :style "margin-right: 5px"} "Pause"]
+    [:button {:id "stop"} "Stop"]
     [:canvas
       {:id "canvas"
        :style "display: block"
        :width (str w "px")
        :height (str h "px")}]))
+
+(def ^:dynamic animation-frame-id nil)
 
 (defn qid [id]
   (.querySelector js/document id))
@@ -24,14 +27,26 @@
     (set! (.-innerHTML app) html-string)
     app))
 
-(defn play-track [track-el _]
-  (.play track-el))
+(defn clear-canvas [ctx width height]
+  (set! (.-fillStyle ctx) "rgb(255, 255, 255)")
+  (.fillRect ctx 0 0 width height))
+
+(defn play-track [track-el frame]
+  (.play track-el)
+  (frame))
 
 (defn pause-track [track-el _]
+  (.cancelAnimationFrame js/window animation-frame-id)
   (.pause track-el))
 
+(defn stop-track [track-el {:keys [root width height]} _]
+  (.cancelAnimationFrame js/window animation-frame-id)
+  (.pause track-el)
+  (set! (.-currentTime track-el) 0)
+  (clear-canvas (:canvas-context @root) width height))
+
 (defn create-contexts [track-el canvas-el]
-  (let [context (new js/AudioContext)]
+  (let [context (new js/AudioContext)] ; need webkit prefix here
     {:context context
      :canvas-context (.getContext canvas-el "2d")
      :track-src (.createMediaElementSource context track-el)
@@ -43,18 +58,18 @@
   (.connect track-src (.-destination context))
   (.connect analyser (.-destination context)))
 
-(defn setup [{:keys [root width height track freq-data]}]
+(defn setup [{:keys [root frame freq-data] :as config}]
   (print "Setup")
-  (let [app (insert-dom (html width height track))
-        play-btn (qid "#play")
-        pause-btn (qid "#pause")
-        track-el (qid "#track")
-        canvas-el (qid "#canvas")
-        config (create-contexts track-el canvas-el)]
-      (swap! root merge config)
-      (connect-audio config (.-length freq-data))
-      (events/listen play-btn "click" (partial play-track track-el))
-      (events/listen pause-btn "click" (partial pause-track track-el))))
+  (let [app (insert-dom (html config))
+        nodes (map qid ["#play" "#pause" "#stop" "#track" "#canvas"])
+        [play-btn pause-btn stop-btn track-el canvas-el] nodes
+        contexts (create-contexts track-el canvas-el)]
+      (swap! root merge contexts)
+      (connect-audio contexts (.-length freq-data))
+      (clear-canvas (:canvas-context contexts) (:width config) (:height config))
+      (events/listen play-btn "click" (partial play-track track-el (partial frame @root config)))
+      (events/listen pause-btn "click" (partial pause-track track-el))
+      (events/listen stop-btn "click" (partial stop-track track-el config))))
 
 (defn teardown [{:keys [context]}]
   (print "Teardown")

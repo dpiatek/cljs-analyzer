@@ -1,12 +1,40 @@
 # cljs-analyzer
 
-FIXME: Write a one-line description of your library/project.
+A boilerplate for writing audio visualisations:
 
 ## Overview
 
-FIXME: Write a paragraph about the library/project and highlight its goals.
+The aim of this project is to have a reusuable, interactive setup for creating
+audio visualisations in the browser, using clojurescipt, figwheel and repl
+centered development, where the flow is as follows:
+
+1. Create a config
+2. Write your render function
+3. Use figwheel and the repl to interactively develop your visualisation
+
+### API
+
+The config must be a map with the following keys:
+- `:freq-data` - a `Uint8Array` that will hold the [analyser node](http://devdocs.io/dom/analysernode) data
+- `:root` - this must be a clojure atom that will hold the drawing and audio contexts
+- `:frame` - a function that will get the dereferenced atom containing contexts and this full config and will be responsibile
+for re-drawing things on the screen
+- `:width` - the width of the canvas element
+- `:height` - the height of the canvas element
+- `:track` - the URL of the track to be used
+
+- `(setup config)` - creates the HTML and sets up the contexts. Takes the `config`.
+- `(teardown (deref (:root config)))` - undoes the setup, removes the HTML and closes the contexts. Used with figwheel when reloading js.
+- `animation-frame-id` - use this reference to `set!` the id of `requestAnimationFrame` so it can be canceled
+when the pause and stop buttons are pressed
+```
+(set! c/animation-frame-id (.requestAnimationFrame js/window (partial frame root config))))
+```
 
 ## Setup
+
+_Note: Use the below command with `rlwrap` which will provide repl history and
+generally improve your dev experience_
 
 To get an interactive development environment run:
 
@@ -30,10 +58,10 @@ To create a production build run:
     lein do clean, cljsbuild once min
 
 And open your browser in `resources/public/index.html`. You will not
-get live reloading, nor a REPL. 
+get live reloading, nor a REPL.
 
 ## License
 
-Copyright © 2014 FIXME
+Copyright © 2017 Dominik Piatek
 
 Distributed under the Eclipse Public License either version 1.0 or (at your option) any later version.

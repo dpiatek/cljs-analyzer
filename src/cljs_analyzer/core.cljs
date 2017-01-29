@@ -73,6 +73,7 @@
 
 (defn teardown [{:keys [context]}]
   (print "Teardown")
+  (.cancelAnimationFrame js/window animation-frame-id)
   (.close context)
   (events/removeAll (qid "#play") "click")
   (events/removeAll (qid "#pause") "click")

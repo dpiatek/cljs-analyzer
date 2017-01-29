@@ -12,7 +12,7 @@ centered development, where the flow is as follows:
 2. Write your render function
 3. Use figwheel and the repl to interactively develop your visualisation
 
-### API
+### Configuration
 
 The config must be a map with the following keys:
 - `:freq-data` - a `Uint8Array` that will hold the [analyser node](http://devdocs.io/dom/analysernode) data
@@ -23,6 +23,7 @@ for re-drawing things on the screen
 - `:height` - the height of the canvas element
 - `:track` - the URL of the track to be used
 
+### API:
 - `(setup config)` - creates the HTML and sets up the contexts. Takes the `config`.
 - `(teardown (deref (:root config)))` - undoes the setup, removes the HTML and closes the contexts. Used with figwheel when reloading js.
 - `animation-frame-id` - use this reference to `set!` the id of `requestAnimationFrame` so it can be canceled

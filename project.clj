@@ -1,6 +1,6 @@
 (defproject cljs-analyzer "0.1.0-SNAPSHOT"
-  :description "FIXME: write this!"
-  :url "http://example.com/FIXME"
+  :description "A boilerplate for writing audio visualisations"
+  :url "https://github.com/dpiatek/cljs-analyzer"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 

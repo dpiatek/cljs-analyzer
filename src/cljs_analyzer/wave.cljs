@@ -7,6 +7,7 @@
   [freq-data (.-frequencyBinCount analyser)]) ; bin count does not change!
 
 (defn render [{w :width h :height :as config} ctx [freq-data buffer-length]]
+  (print "render")
   (set! (.-fillStyle ctx) "rgb(255, 255, 255)")
   (.fillRect ctx 0 0 w h)
   (loop [i 0 x 0]
@@ -27,7 +28,7 @@
    :frame frame
    :width 1024
    :height 256
-   :track "/audio/heavy-soul-slinger.mp3"})
+   :track ""})
 
 (defn on-js-reload []
   (c/teardown (deref (:root config)))

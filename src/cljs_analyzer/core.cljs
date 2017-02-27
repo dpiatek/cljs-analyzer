@@ -7,10 +7,11 @@
 
 (defn html [{w :width h :height src :track}]
   (hiccups/html
-    [:div [:audio  {:id "track" :src src}]]
-    [:button {:id "play" :style "margin-right: 5px"} "Play"]
-    [:button {:id "pause" :style "margin-right: 5px"} "Pause"]
-    [:button {:id "stop"} "Stop"]
+    [:div {:style "position: fixed; top: 5px; left: 5px;"}
+      [:audio  {:id "track" :src src} ""]
+      [:button {:id "play" :style "margin-right: 5px"} "Play"]
+      [:button {:id "pause" :style "margin-right: 5px"} "Pause"]
+      [:button {:id "stop"} "Stop"]]
     [:canvas
       {:id "canvas"
        :style "display: block"
@@ -28,7 +29,7 @@
     app))
 
 (defn clear-canvas [ctx width height]
-  (set! (.-fillStyle ctx) "rgb(255, 255, 255)")
+  (set! (.-fillStyle ctx) "rgb(0, 0, 0)")
   (.fillRect ctx 0 0 width height))
 
 (defn play-track [track-el frame]
@@ -69,7 +70,8 @@
       (clear-canvas (:canvas-context contexts) (:width config) (:height config))
       (events/listen play-btn "click" (partial play-track track-el (partial frame @root config)))
       (events/listen pause-btn "click" (partial pause-track track-el))
-      (events/listen stop-btn "click" (partial stop-track track-el config))))
+      (events/listen stop-btn "click" (partial stop-track track-el config))
+      (print (.-sampleRate (:context @root)))))
 
 (defn teardown [{:keys [context]}]
   (print "Teardown")

@@ -59,7 +59,15 @@
   (.connect track-src (.-destination context))
   (.connect analyser (.-destination context)))
 
-(defn setup [{:keys [root frame freq-data] :as config}]
+(defn get-bytes! [analyser freq-data]
+  (.getByteTimeDomainData analyser freq-data)
+  freq-data)
+
+(defn frame [render {:keys [analyser canvas-context] :as r} {:keys [freq-data] :as config} bin-count]
+  (render config canvas-context (get-bytes! analyser freq-data) bin-count)
+  (set! animation-frame-id (.requestAnimationFrame js/window (partial frame render r config bin-count))))
+
+(defn setup [{:keys [root render freq-data] :as config}]
   (print "Setup")
   (let [app (insert-dom (html config))
         nodes (map qid ["#play" "#pause" "#stop" "#track" "#canvas"])
@@ -68,7 +76,7 @@
       (swap! root merge contexts)
       (connect-audio contexts (.-length freq-data))
       (clear-canvas (:canvas-context contexts) (:width config) (:height config))
-      (events/listen play-btn "click" (partial play-track track-el (partial frame @root config)))
+      (events/listen play-btn "click" (partial play-track track-el (partial frame render @root config (.-frequencyBinCount (:analyser contexts)))))
       (events/listen pause-btn "click" (partial pause-track track-el))
       (events/listen stop-btn "click" (partial stop-track track-el config))
       (print (.-sampleRate (:context @root)))))
@@ -79,4 +87,8 @@
   (.close context)
   (events/removeAll (qid "#play") "click")
   (events/removeAll (qid "#pause") "click")
-  (set! (.-innerText (qid "#app")) ""))
+  (insert-dom "<div></div>"))
+
+(defn reset [config]
+  (teardown (deref (:root config)))
+  (setup config))

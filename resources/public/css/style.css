@@ -1,3 +1,19 @@
 body {
   margin: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+#app div:first-child {
+  position: fixed;
+  top: 5px;
+  left: 5px;
+}
+
+button#play, button#pause {
+  margin-right: 5px;
+}
+
+#canvas {
+  display: block;
 }

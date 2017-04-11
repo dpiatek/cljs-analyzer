@@ -1,7 +1,8 @@
 (ns cljs-analyzer.wave
   (:require [cljs-analyzer.core :as c]
             [goog.string :as gstring]
-            [goog.string.format]))
+            [goog.string.format]
+            [clojure.spec :as s]))
 
 (defn freq-for-bin [bin]
   (str (.toFixed (/ (js/Math.ceil (* (inc bin) (/ 44100 64))) 1000) 1)))
@@ -22,13 +23,16 @@
       (when (or (< i buffer-length))
         (recur (inc i) (+ x bar-width))))))
 
-(defonce config
+(def config
   {:freq-data (js/Uint8Array. 64)
    :root (atom {})
    :render render
-   :width (.innerWidth js/window)
-   :height (.innerHeight js/window)
+   :width (.-innerWidth js/window)
+   :height (.-innerHeight js/window)
    :track "/audio/heavy-soul-slinger.mp3"})
+
+(defn setup [c]
+  (c/setup c))
 
 (defn reset [c]
   (c/reset c))

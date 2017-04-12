@@ -22,8 +22,8 @@
 (s/def ::canvas-height number?)
 (s/def ::track string?)
 
-(s/def ::context (partial constructor? js/AudioContext))
-(s/def ::canvas-context (partial constructor? js/CanvasRenderingContext2D))
+(s/def ::audio-ctx (partial constructor? js/AudioContext))
+(s/def ::render-ctx (partial constructor? js/CanvasRenderingContext2D))
 (s/def ::track-src (partial constructor? js/MediaElementAudioSourceNode))
 (s/def ::analyser (partial constructor? js/AnalyserNode))
 
@@ -35,32 +35,46 @@
 (s/def ::contexts
   (s/keys
     :req-un
-    [::context ::canvas-context ::track-src ::analyser]))
+    [::audio-ctx ::render-ctx ::track-src ::analyser]))
 
 (defn conform [spec data]
   (if (= (s/conform spec data) ::s/invalid)
      (throw (ex-info "Invalid input" (s/explain spec data)))
      data))
 
-(defn html [{:keys [width height track] :as config}]
-  (hiccups/html
-    [:div
-      [:audio  {:id "track" :src track} ""]
-      [:button {:id "play"} "Play"]
-      [:button {:id "pause"} "Pause"]
-      [:button {:id "stop"} "Stop"]]
+(def ids
+  {:controls "controls"
+   :track "track"
+   :play "play"
+   :pause "pause"
+   :stop "stop"
+   :canvas "canvas"})
+
+(defn default-html [width height track]
+  [:div
+    [:div {:id (:controls ids)}
+      [:audio  {:id (:track ids) :src track} ""]
+      [:button {:id (:play ids)} "Play"]
+      [:button {:id (:pause ids)} "Pause"]
+      [:button {:id (:stop ids)} "Stop"]]
     [:canvas
-      {:id "canvas"
+      {:id (:canvas ids)
        :width (str width "px")
-       :height (str height "px")}]))
+       :height (str height "px")}]])
+
+(defn html [{:keys [width height track custom-html] :as config}]
+  (hiccups/html
+    (if (nil? custom-html)
+      (default-html width height track)
+      (custom-html config))))
 
 (def ^:dynamic animation-frame-id nil)
 
 (defn qid [id]
-  (.querySelector js/document id))
+  (.querySelector js/document (str \# id)))
 
 (defn insert-dom [html-string]
-  (let [app (qid "#app")]
+  (let [app (qid "app")]
     (set! (.-innerHTML app) html-string)
     app))
 
@@ -72,33 +86,33 @@
   (.cancelAnimationFrame js/window animation-frame-id)
   (set! animation-frame-id nil))
 
-(defn play-track [track-el frame]
+(defn play-callback [track-el frame]
   (.play track-el)
   (if (nil? animation-frame-id)
     (frame)))
 
-(defn pause-track [track-el _]
+(defn pause-callback [track-el _]
   (clear-frame!)
   (.pause track-el))
 
-(defn stop-track [track-el {:keys [root width height]} _]
+(defn stop-callback [track-el {:keys [root width height]} _]
   (clear-frame!)
   (.pause track-el)
   (set! (.-currentTime track-el) 0)
-  (clear-canvas (:canvas-context @root) width height))
+  (clear-canvas (:render-ctx @root) width height))
 
-(defn create-contexts [track-el canvas-el]
-  (let [context (new js/AudioContext)] ; need webkit prefix here
-    {:context context
-     :canvas-context (.getContext canvas-el "2d")
-     :track-src (.createMediaElementSource context track-el)
-     :analyser (.createAnalyser context)}))
+(defn create-contexts [nodes]
+  (let [audio-ctx (new js/AudioContext)] ; need webkit prefix here
+    {:audio-ctx audio-ctx
+     :render-ctx (.getContext (:canvas nodes) "2d")
+     :track-src (.createMediaElementSource audio-ctx (:track nodes))
+     :analyser (.createAnalyser audio-ctx)}))
 
-(defn connect-audio [{:keys [analyser context track-src]} fft-size]
+(defn connect-audio [{:keys [analyser audio-ctx track-src]} fft-size]
   (set! (.-fftSize analyser) fft-size)
   (.connect track-src analyser)
-  (.connect track-src (.-destination context))
-  (.connect analyser (.-destination context)))
+  (.connect track-src (.-destination audio-ctx))
+  (.connect analyser (.-destination audio-ctx)))
 
 (defn get-bytes! [analyser freq-data]
   (.getByteFrequencyData analyser freq-data)
@@ -106,56 +120,65 @@
 
 (s/def ::nodes (s/coll-of not-nil?))
 
-(defn schedule [frame root config bin-count]
+(defn get-nodes [ids]
+  (let [k (keys ids) v (vals ids)]
+    (zipmap k (map qid v))))
+
+(defn schedule! [frame derefed-root config]
   (set! animation-frame-id
     (.requestAnimationFrame
       js/window
-      (partial frame root config bin-count))))
+      (partial frame derefed-root config))))
 
-(defn frame [render root config bin-count]
-  (render @root config bin-count)
-  (schedule (partial frame render) root config bin-count))
+(defn frame [derefed-root config]
+  ((:render config) derefed-root config)
+  (schedule! frame derefed-root config))
 
-(defn setup [{:keys [root render freq-data] :as config}]
+(defn bind-events [config nodes]
+  (events/listen (:play nodes) "click"
+    (partial play-callback (:track nodes)
+      (partial frame (deref (:root config)) config)))
+  (events/listen (:pause nodes) "click"
+    (partial pause-callback (:track nodes)))
+  (events/listen (:stop nodes) "click"
+    (partial stop-callback (:track nodes) config)))
+
+(defn setup [{:keys [root width height freq-data] :as config}]
   ; (conform ::config config)
   (print "Setup")
   (let [app (insert-dom (html config))
-        nodes (conform ::nodes
-                (map qid ["#play" "#pause" "#stop" "#track" "#canvas"]))
-        [play-btn pause-btn stop-btn track-el canvas-el] nodes
-        contexts (create-contexts track-el canvas-el)]
-      (swap! root merge contexts)
+        nodes (get-nodes ids)
+        contexts (create-contexts nodes)
+        bin-count (.-frequencyBinCount (:analyser contexts))
+        sample-rate (.-sampleRate (:audio-ctx contexts))]
+      (swap! root merge contexts {:sample-rate sample-rate :bin-count bin-count})
       (connect-audio contexts (.-length freq-data))
-      (clear-canvas (:canvas-context contexts) (:width config) (:height config))
-      (events/listen play-btn "click"
-        (partial play-track track-el
-          (partial frame render root config (.-frequencyBinCount (:analyser contexts)))))
-      (events/listen pause-btn "click" (partial pause-track track-el))
-      (events/listen stop-btn "click" (partial stop-track track-el config))
-      (print (.-sampleRate (:context @root)))))
+      (clear-canvas (:render-ctx contexts) width height)
+      (bind-events config nodes)))
 
-(defn teardown [{:keys [context]}]
+(defn teardown [config]
   ; (conform ::context context)
-  (print "Teardown")
-  (clear-frame!)
-  (.close context)
-  (events/removeAll (qid "#play") "click")
-  (events/removeAll (qid "#pause") "click")
-  (insert-dom "<div></div>"))
+  (let [root (deref (:root config)) nodes (:nodes config)]
+    (print "Teardown")
+    (clear-frame!)
+    (.close (:audio-ctx root))
+    (events/removeAll (:play nodes) "click")
+    (events/removeAll (:pause nodes) "click")
+    (events/removeAll (:stop nodes) "click")
+    (insert-dom "<div></div>")))
+
+(defn reset [config]
+  (teardown config)
+  (setup config))
 
 (defn reload [config]
   (print "Reload")
   (let [root (:root config)
-        nodes (map qid ["#play" "#pause" "#stop" "#track" "#canvas"])
-        [play-btn pause-btn stop-btn track-el canvas-el] nodes
+        nodes (get-nodes ids)
         playing? (not-nil? animation-frame-id)
-        frame-applied (partial frame (:render config) root config (.-frequencyBinCount (:analyser @root)))]
+        frame-callback (partial frame @root config)]
     (clear-frame!)
-    (events/removeAll (qid "#play") "click")
-    (events/listen play-btn "click"
-      (partial play-track track-el frame-applied))
-    (if playing? (frame-applied))))
-
-(defn reset [config]
-  (teardown (deref (:root config)))
-  (setup config))
+    (events/removeAll (:play nodes) "click")
+    (events/listen (:play nodes) "click"
+      (partial play-callback (:track nodes) frame-callback))
+    (if playing? (frame-callback))))

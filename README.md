@@ -16,16 +16,16 @@ centered development, where the flow is as follows:
 
 The config must be a map with the following keys:
 - `:freq-data` - a `Uint8Array` that will hold the [analyser node](http://devdocs.io/dom/analysernode) data
-- `:root` - this must be a clojure atom that will hold the drawing and audio contexts
-- `:frame` - a function that will get the dereferenced atom containing contexts and this full config and will be responsibile
+- `:root` - this must be a clojure atom that will hold the drawing and audio audio-ctxs
+- `:frame` - a function that will get the dereferenced atom containing audio-ctxs and this full config and will be responsibile
 for re-drawing things on the screen
 - `:width` - the width of the canvas element
 - `:height` - the height of the canvas element
 - `:track` - the URL of the track to be used
 
 ### API:
-- `(setup config)` - creates the HTML and sets up the contexts. Takes the `config`.
-- `(teardown (deref (:root config)))` - undoes the setup, removes the HTML and closes the contexts. Used with figwheel when reloading js.
+- `(setup config)` - creates the HTML and sets up the audio-ctxs. Takes the `config`.
+- `(teardown (deref (:root config)))` - undoes the setup, removes the HTML and closes the audio-ctxs. Used with figwheel when reloading js.
 - `animation-frame-id` - use this reference to `set!` the id of `requestAnimationFrame` so it can be canceled
 when the pause and stop buttons are pressed
 ```

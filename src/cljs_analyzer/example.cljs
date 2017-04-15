@@ -4,7 +4,7 @@
 (defn render [{:keys [analyser render-ctx bin-count] :as root}
               {:keys [freq-data width height] :as config}]
   (c/clear-canvas render-ctx config)
-  (let [bytes (c/get-bytes! analyser freq-data)]
+  (let [bytes (c/get-bytes! analyser freq-data :frequency)]
     (set! (.-font render-ctx) "16px serif")
     (loop [i 0]
       (let [val (aget bytes i)]

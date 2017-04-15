@@ -55,20 +55,19 @@
 (defn default-html [width height track]
   [:div
     [:div {:id (:controls ids)}
-      [:audio  {:id (:track ids) :src track} ""]
       [:button {:id (:play ids)} "Play"]
       [:button {:id (:pause ids)} "Pause"]
       [:button {:id (:stop ids)} "Stop"]]
     [:canvas
       {:id (:canvas ids)
        :width (str width "px")
-       :height (str height "px")}]])
+       :height (str height "px")}]
+    (if (not-nil? track)
+      [:audio  {:id (:track ids) :src track} ""])])
 
-(defn html [{:keys [width height track custom-html] :as config}]
+(defn html [{:keys [width height track] :as config}]
   (hiccups/html
-    (if (nil? custom-html)
-      (default-html width height track)
-      (custom-html config))))
+    (default-html width height track)))
 
 (defn qid [id]
   (.querySelector js/document (str \# id)))
@@ -101,22 +100,30 @@
   (set! (.-currentTime track) 0)
   (clear-canvas (:render-ctx @state) config))
 
+(defn create-source [audio-ctx track]
+  (.createMediaElementSource audio-ctx track))
+
 (defn create-contexts [nodes]
   (let [audio-ctx (new js/AudioContext)] ; need webkit prefix here
     {:audio-ctx audio-ctx
      :render-ctx (.getContext (:canvas nodes) "2d")
-     :track-src (.createMediaElementSource audio-ctx (:track nodes))
      :analyser (.createAnalyser audio-ctx)}))
 
-(defn connect-audio [{:keys [analyser audio-ctx track-src]} fft-size]
+(defn connect-audio [{:keys [analyser audio-ctx track-src]} source fft-size]
   (set! (.-fftSize analyser) fft-size)
-  (.connect track-src analyser)
-  (.connect track-src (.-destination audio-ctx))
+  (.connect source analyser)
+  (.connect source (.-destination audio-ctx))
   (.connect analyser (.-destination audio-ctx)))
 
-(defn get-bytes! [analyser freq-data]
-  (.getByteFrequencyData analyser freq-data)
-  freq-data)
+(defn get-bytes!
+  ([analyser freq-data]
+   (.getByteFrequencyData analyser freq-data) freq-data)
+  ([analyser freq-data domain]
+   (if (= domain :frequency)
+     (get-bytes! analyser freq-data)
+     (do
+       (.getByteTimeDomainData analyser freq-data)
+       freq-data))))
 
 (defn get-nodes [ids]
   (let [k (keys ids) v (vals ids)]
@@ -144,13 +151,14 @@
 (defn setup [config state]
   (print "Setup")
   (conform ::config config)
-  (let [app (insert-dom (html config))
-        nodes (get-nodes ids)
+  (insert-dom (html config))
+  (let [nodes (get-nodes ids)
         contexts (create-contexts nodes)
-        bin-count (.-frequencyBinCount (:analyser contexts))
-        sample-rate (.-sampleRate (:audio-ctx contexts))]
-      (swap! state merge contexts {:sample-rate sample-rate :bin-count bin-count})
-      (connect-audio contexts (.-length (:freq-data config)))
+        source (create-source (:audio-ctx contexts) (:track nodes))]
+      (connect-audio contexts source (.-length (:freq-data config)))
+      (swap! state merge contexts
+        {:sample-rate (.-sampleRate (:audio-ctx contexts))
+         :bin-count (.-frequencyBinCount (:analyser contexts))})
       (clear-canvas (:render-ctx contexts) config)
       (bind-events config state nodes)))
 

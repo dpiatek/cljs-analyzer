@@ -112,8 +112,7 @@
 (defn connect-audio [{:keys [analyser audio-ctx track-src]} source fft-size]
   (set! (.-fftSize analyser) fft-size)
   (.connect source analyser)
-  (.connect source (.-destination audio-ctx))
-  (.connect analyser (.-destination audio-ctx)))
+  (.connect source (.-destination audio-ctx)))
 
 (defn get-bytes!
   ([analyser freq-data]

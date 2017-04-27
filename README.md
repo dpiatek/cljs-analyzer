@@ -1,65 +1,70 @@
 # cljs-analyzer
 
-A boilerplate for writing audio visualisations:
+A boilerplate/playground for writing audio visualisations with Web Audio API, ClojureScript and Figwheel, but also a playground for writing reloadable code and exploring it with those technologies.
+
+Keep in mind the API is still in flux and there's plenty of bugs (hence no real release yet).
 
 ## Overview
 
-The aim of this project is to have a reusuable, interactive setup for creating
-audio visualisations in the browser, using clojurescipt, figwheel and repl
-centered development, where the flow is as follows:
+The aim is to have a reusable, interactive setup for creating audio visualisations in the browser, driven by REPL interactions.
+
+The workflow should be as follows:
 
 1. Create a config
 2. Write your render function
-3. Use figwheel and the repl to interactively develop your visualisation
+3. Play your track
+4. Modify your render function
+5. Rinse and repeat "4" until done
 
-### Configuration
+## Getting started
 
-The config must be a map with the following keys:
-- `:freq-data` - a `Uint8Array` that will hold the [analyser node](http://devdocs.io/dom/analysernode) data
-- `:root` - this must be a clojure atom that will hold the drawing and audio audio-ctxs
-- `:frame` - a function that will get the dereferenced atom containing audio-ctxs and this full config and will be responsibile
-for re-drawing things on the screen
-- `:width` - the width of the canvas element
-- `:height` - the height of the canvas element
-- `:track` - the URL of the track to be used
+_Note: Use the below command with `rlwrap` (or similar readline wrapper) which will provide repl history and
+generally improve your REPL experience_
 
-### API:
-- `(setup config)` - creates the HTML and sets up the audio-ctxs. Takes the `config`.
-- `(teardown (deref (:root config)))` - undoes the setup, removes the HTML and closes the audio-ctxs. Used with figwheel when reloading js.
-- `animation-frame-id` - use this reference to `set!` the id of `requestAnimationFrame` so it can be canceled
-when the pause and stop buttons are pressed
-```
-(set! c/animation-frame-id (.requestAnimationFrame js/window (partial frame root config))))
-```
-
-## Setup
-
-_Note: Use the below command with `rlwrap` which will provide repl history and
-generally improve your dev experience_
-
-To get an interactive development environment run:
+To get started run:
 
     lein figwheel
 
-and open your browser at [localhost:3449](http://localhost:3449/).
-This will auto compile and send all changes to the browser without the
-need to reload. After the compilation process is complete, you will
-get a Browser Connected REPL. An easy way to try it is:
+This will open your browser at [localhost:3449](http://localhost:3449/). After the compilation process is complete, you will
+get a browser connected REPL. An easy way to test it is:
 
     (js/alert "Am I connected?")
 
 and you should see an alert in the browser window.
 
-To clean all compiled files:
+To start a visualisation you will need 3 things: a config, a state atom and a render function.
 
-    lein clean
+### Config
 
-To create a production build run:
+- `state`
 
-    lein do clean, cljsbuild once min
+This should just be a simple atom, containing a map and defined with defonce. It will hold the instances
+of AudioContext and CanvasContext.
 
-And open your browser in `resources/public/index.html`. You will not
-get live reloading, nor a REPL.
+- `render`
+
+A function that will get the dereferenced state atom as it's first argument and the config as it's second. It will be passed to `requestAnimationFrame` and is responsible for drawing your visualisation.
+
+- `config`
+
+The config is map that should have the following keys:
+
+-- `:data` - a `Uint8Array` that will hold the [analyser node](http://devdocs.io/dom/analysernode) data
+-- `:render` - the function described above
+-- `:width` - the width of the canvas element
+-- `:height` - the height of the canvas element
+-- `:track` - the URL of the track to be used
+-- `:background` - the initial background color of the visualisation
+
+### API
+
+The `cljs-analyzer.core` namespace provides the following methods:
+
+-- `setup` - this takes the config and state as arguments and sets up the visualisation
+-- `teardown` - this takes the config and state as arguments and teardowns the whole visualisation (clearing the html and closing the contexts)
+-- `reset` - this takes the config and state as arguments and calls first `teardown` and then `setup`
+-- `reload` - pass this function to Fighwheels `on-js-reload` and it will reload only your render function, but not your config
+
 
 ## License
 

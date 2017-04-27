@@ -49,21 +49,21 @@ A function that will get the dereferenced state atom as it's first argument and 
 
 The config is map that should have the following keys:
 
--- `:data` - a `Uint8Array` that will hold the [analyser node](http://devdocs.io/dom/analysernode) data
--- `:render` - the function described above
--- `:width` - the width of the canvas element
--- `:height` - the height of the canvas element
--- `:track` - the URL of the track to be used
--- `:background` - the initial background color of the visualisation
+- `:data` - a `Uint8Array` that will hold the [analyser node](http://devdocs.io/dom/analysernode) data
+- `:render` - the function described above
+- `:width` - the width of the canvas element
+- `:height` - the height of the canvas element
+- `:track` - the URL of the track to be used
+- `:background` - the initial background color of the visualisation
 
 ### API
 
 The `cljs-analyzer.core` namespace provides the following methods:
 
--- `setup` - this takes the config and state as arguments and sets up the visualisation
--- `teardown` - this takes the config and state as arguments and teardowns the whole visualisation (clearing the html and closing the contexts)
--- `reset` - this takes the config and state as arguments and calls first `teardown` and then `setup`
--- `reload` - pass this function to Fighwheels `on-js-reload` and it will reload only your render function, but not your config
+- `setup` - this takes the config and state as arguments and sets up the visualisation
+- `teardown` - this takes the config and state as arguments and teardowns the whole visualisation (clearing the html and closing the contexts)
+- `reset` - this takes the config and state as arguments and calls first `teardown` and then `setup`
+- `reload` - pass this function to Fighwheels `on-js-reload` and it will reload only your render function, but not your config
 
 
 ## License

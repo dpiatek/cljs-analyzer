@@ -2,9 +2,9 @@
   (:require [cljs-analyzer.core :as c]))
 
 (defn render [{:keys [analyser render-ctx bin-count] :as root}
-              {:keys [freq-data width height] :as config}]
+              {:keys [byte-data width height] :as config}]
   (c/clear-canvas render-ctx config)
-  (let [bytes (c/get-bytes! analyser freq-data :frequency)]
+  (let [bytes (c/get-bytes! analyser byte-data :frequency)]
     (set! (.-font render-ctx) "16px serif")
     (loop [i 0]
       (let [val (aget bytes i)]
@@ -16,7 +16,7 @@
 (defonce state (atom {}))
 
 (def config
-  {:freq-data (js/Uint8Array. 64)
+  {:byte-data (js/Uint8Array. 64)
    :render render
    :width (.-innerWidth js/window)
    :height (.-innerHeight js/window)

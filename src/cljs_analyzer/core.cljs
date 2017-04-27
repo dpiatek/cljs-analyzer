@@ -16,7 +16,7 @@
 (defn atom-map? [a]
   (map? @(atom {})))
 
-(s/def ::freq-data (partial constructor? js/Uint8Array))
+(s/def ::byte-data (partial constructor? js/Uint8Array))
 (s/def ::state atom-map?)
 (s/def ::canvas-width number?)
 (s/def ::canvas-height number?)
@@ -30,7 +30,7 @@
 (s/def ::config
   (s/keys
     :req-un
-    [::freq-data ::width ::height ::track]))
+    [::byte-data ::width ::height ::track]))
 
 (s/def ::contexts
   (s/keys
@@ -115,14 +115,14 @@
   (.connect source (.-destination audio-ctx)))
 
 (defn get-bytes!
-  ([analyser freq-data]
-   (.getByteFrequencyData analyser freq-data) freq-data)
-  ([analyser freq-data domain]
+  ([analyser byte-data]
+   (.getByteFrequencyData analyser byte-data) byte-data)
+  ([analyser byte-data domain]
    (if (= domain :frequency)
-     (get-bytes! analyser freq-data)
+     (get-bytes! analyser byte-data)
      (do
-       (.getByteTimeDomainData analyser freq-data)
-       freq-data))))
+       (.getByteTimeDomainData analyser byte-data)
+       byte-data))))
 
 (defn get-nodes [ids]
   (let [k (keys ids) v (vals ids)]
@@ -154,7 +154,7 @@
   (let [nodes (get-nodes ids)
         contexts (create-contexts nodes)
         source (create-source (:audio-ctx contexts) (:track nodes))]
-      (connect-audio contexts source (.-length (:freq-data config)))
+      (connect-audio contexts source (.-length (:byte-data config)))
       (swap! state merge contexts
         {:sample-rate (.-sampleRate (:audio-ctx contexts))
          :bin-count (.-frequencyBinCount (:analyser contexts))})

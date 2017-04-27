@@ -5,8 +5,8 @@
             [clojure.spec :as s]))
 
 (defn render [{:keys [analyser render-ctx bin-count] :as root}
-              {:keys [freq-data width height] :as config}]
-  (let [bytes (c/get-bytes! analyser freq-data)
+              {:keys [byte-data width height] :as config}]
+  (let [bytes (c/get-bytes! analyser byte-data)
         bin-width (js/Math.ceil (- (/ width bin-count) 8))
         max-squares (js/Math.ceil (/ height (+ bin-width 8)))
         multi (/ max-squares 255)]
@@ -16,11 +16,11 @@
             squares-per-bar (js/Math.ceil (* multi val))]
         (loop [j 0]
           (if (< j squares-per-bar)
-            (set! (.-fillStyle render-ctx) (str "rgb(255,255," (- 255 val) ")"))
-            (set! (.-fillStyle render-ctx) (str "rgb(" (- 255 val) ",255,255)")))
+            (set! (.-fillStyle render-ctx) (str "rgb(255,0,0)"))
+            (set! (.-fillStyle render-ctx) (str "rgb(255,255,255)")))
           (.fillRect render-ctx
-            (+ 7 (* i (+ 5 bin-width)))
-            (- height (* j (+ 5 bin-width)))
+            (+ 30 (* i (+ 5 bin-width)))
+            (- (- height 40) (* j (+ 5 bin-width)))
             bin-width
             bin-width)
           (when (< j max-squares)
@@ -31,7 +31,7 @@
 (defonce state (atom {}))
 
 (def config
-  {:freq-data (js/Uint8Array. 128)
+  {:byte-data (js/Uint8Array. 128)
    :render render
    :width (.-innerWidth js/window)
    :height (.-innerHeight js/window)

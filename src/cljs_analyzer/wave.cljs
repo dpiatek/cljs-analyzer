@@ -5,8 +5,8 @@
             [clojure.spec :as s]))
 
 (defn render [{:keys [analyser render-ctx bin-count] :as root}
-              {:keys [freq-data width height] :as config}]
-  (let [bytes (c/get-bytes! analyser freq-data :time)]
+              {:keys [byte-data width height] :as config}]
+  (let [bytes (c/get-bytes! analyser byte-data :time)]
     (set! (.-shadowColor render-ctx) "black")
     (set! (.-shadowBlur render-ctx) 0)
     (set! (.-fillStyle render-ctx) "rgba(0,0,0,0.03)")
@@ -29,7 +29,7 @@
 (defonce state (atom {}))
 
 (def config
-  {:freq-data (js/Uint8Array. 128)
+  {:byte-data (js/Uint8Array. 128)
    :render render
    :width (.-innerWidth js/window)
    :height (.-innerHeight js/window)

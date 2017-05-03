@@ -63,7 +63,9 @@ The `cljs-analyzer.core` namespace provides the following methods:
 - `setup` - this takes the config and state as arguments and sets up the visualisation
 - `teardown` - this takes the config and state as arguments and teardowns the whole visualisation (clearing the html and closing the contexts)
 - `reset` - this takes the config and state as arguments and calls first `teardown` and then `setup`
-- `reload` - pass this function to Fighwheels `on-js-reload` and it will reload only your render function, but not your config
+- `reload` - pass this function to Fighwheels `on-js-reload` and it will reload only your render function, but not your config. 
+
+Note that for this to work properly, you need to amend the `project.clj` Figwheel config to point to the right function `/Users/dpiatek/projects/fm-ecom/spec/serializers/react/cms_blocks_serializer_spec.rb`. This is not ideal and I'm still working out how this could work as a library.
 
 
 ## License
